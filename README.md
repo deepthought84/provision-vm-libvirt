@@ -1,5 +1,16 @@
 # provision-vm-libvirt
-bash script for provisioning Debian Based VMs for libvirt with debootstrap
+bash script for provisioning Debian Based VMs for libvirt with debootstrap on LVM Volumes
+
+advantage is the root filesystem is one volume without partitions, so very easy to handle if root filesystem is to be extended
+
+structure per VM:
+
+| Host  | Guest    | Description       |
+| ------ | ----- | ------- |
+| /mnt/vg00/vm_refind | /dev/vda | refind boot manager (read only / shared between vms)  - boots vm via efistub |
+| /mnt/vg00/vm_\<hostname\>_root | /dev/vdb | rootfs |
+| /mnt/vg00/vm_\<hostname\>_swap | /dev/vdc | swap |
+
 
 install to /usr/local/bin/
 
@@ -34,14 +45,6 @@ use refind.conf from this repo, obtain copy of refind_x64.efi and ext4_x64.efi (
 we make sure refind is booted - so we create an OVMF_VARS template for it (install python3-virt-firmware):
 
     sudo virt-fw-vars  --input /usr/share/OVMF/OVMF_VARS_4M.fd --append-boot-filepath "\\EFI\\refind\\refind_x64.efi" --output /usr/share/OVMF/OVMF_VARS_4M_refind.fd
-
-# structure 
-
-| Host  | Guest    | Description       |
-| ------ | ----- | ------- |
-| /mnt/vg00/vm_refind | /dev/vda | refind boot manager (read only / shared between vms)  - loads boots vm via efistub |
-| /mnt/vg00/vm_\<hostname\>_root | /dev/vdb | rootfs |
-| /mnt/vg00/vm_\<hostname\>_swap | /dev/vdc | swap |
 
 
 # Usage 
