@@ -11,9 +11,15 @@ release="trixie"
 
 vg="vg00"
 
-adminuser="adminuser"
+adminuser="admin"
 
-authorized_key="ssh-ed25519 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+network="default"
+
+authorized_key="ssh-ed25519 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+packages="linux-image-amd64,locales,keyboard-configuration,console-setup,sudo,openssh-server,qemu-guest-agent"
+
+kbd="de"
 
 lv_root="${vg}/vm_${1}_root"
 lv_swap="${vg}/vm_${1}_swap"
@@ -36,7 +42,7 @@ else
 fi
 
 
-debootstrap --include=linux-image-amd64,locales,keyboard-configuration,console-setup,sudo,openssh-server,qemu-guest-agent ${release} /mnt/${lv_root} 
+debootstrap --include=${packages} ${release} /mnt/${lv_root} 
 
 echo "linux \"root=/dev/vdb ro\"" > /mnt/${lv_root}/boot/refind_linux.cfg
 
@@ -59,7 +65,7 @@ echo "en_US.UTF-8 UTF-8" >> /mnt/${lv_root}/etc/locale.gen
 
 cat > /mnt/${lv_root}/etc/default/keyboard <<EOF
 XKBMODEL="pc105"
-XKBLAYOUT="de"
+XKBLAYOUT="${kbd}"
 XKBVARIANT=""
 XKBOPTIONS=""
 EOF
@@ -148,6 +154,6 @@ virt-install \
   --boot uefi \
   --boot loader=/usr/share/OVMF/OVMF_CODE_4M.fd,loader.readonly=yes,loader.type=pflash,nvram.template=/usr/local/share/provision_vm/OVMF_VARS_4M_refind.fd \
   --os-variant debian13 \
-  --network network=default,model=virtio \
+  --network network=${network},model=virtio \
   --import \
   --noreboot
