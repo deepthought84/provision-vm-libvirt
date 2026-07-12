@@ -31,6 +31,7 @@ use refind.conf from this repo, obtain copy of refind_x64.efi and ext4_x64.efi (
     umount
 
 we make sure refind is booted - so we create an OVMF_VARS template for it (install python3-virt-firmware):
+
     sudo virt-fw-vars  --input /usr/share/OVMF/OVMF_VARS_4M.fd --append-boot-filepath "\\EFI\\refind\\refind_x64.efi" --output /usr/share/OVMF/OVMF_VARS_4M_refind.fd
 
 # structure 
