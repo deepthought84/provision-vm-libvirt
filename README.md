@@ -32,9 +32,13 @@ make sure to refind is booted - so we create an OVMF_VARS template for it (insta
     sudo virt-fw-vars  --input /usr/share/OVMF/OVMF_VARS_4M.fd --append-boot-filepath "\\EFI\\refind\\refind_x64.efi" --output /usr/share/OVMF/OVMF_VARS_4M_refind.fd
 
 # structure 
- - /mnt/vg00/vm_refind -> /dev/vda -> refind boot manager (read only / shared between vms)  - loads boots vm via efistub
- - /mnt/vg00/vm_<hostname>_root -> /dev/vdb -> rootfs
- - /mnt/vg00/vm_<hostname>_swap -> /dev/vdc -> swapfs
+
+| Host  | Guest    | Description       |
+| ------ | ----- | ------- |
+| /mnt/vg00/vm_refind | /dev/vda | refind boot manager (read only / shared between vms)  - loads boots vm via efistub |
+| /mnt/vg00/vm_<hostname>_root | /dev/vdb | rootfs |
+| /mnt/vg00/vm_<hostname>_swap | /dev/vdc | swap |
+
 
 # Usage 
 provision_vm <hostname> <rootsize> <swapsize> <ramsize in MiB> <vcpu_count>
