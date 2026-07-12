@@ -5,6 +5,8 @@ install to /usr/local/bin/
 
 change variables to your fitting (release,vg,adminuser,network,authorized_key,packages)
 
+default is a minimal debian installation with ssh,sudo and qemu-guest-agent
+
 # prerequisites
 you need a working libvirtd installation with an lvm pool and an dhcp-based network configured
 
@@ -28,7 +30,7 @@ use refind.conf from this repo, obtain copy of refind_x64.efi and ext4_x64.efi (
 
     umount
 
-make sure to refind is booted - so we create an OVMF_VARS template for it (install python3-virt-firmware):
+we make sure refind is booted - so we create an OVMF_VARS template for it (install python3-virt-firmware):
     sudo virt-fw-vars  --input /usr/share/OVMF/OVMF_VARS_4M.fd --append-boot-filepath "\\EFI\\refind\\refind_x64.efi" --output /usr/share/OVMF/OVMF_VARS_4M_refind.fd
 
 # structure 
