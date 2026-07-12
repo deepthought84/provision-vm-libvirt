@@ -15,7 +15,7 @@ adminuser="admin"
 
 network="default"
 
-authorized_key="ssh-ed25519 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+authorized_key="ssh-ed25519 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 packages="linux-image-amd64,locales,keyboard-configuration,console-setup,sudo,openssh-server,qemu-guest-agent"
 
@@ -36,15 +36,15 @@ else
 fi
 
 if lvs ${lv_swap}>/dev/null ; then
-  mkswap mkfs.ext4 /dev/${lv_swap}
+  mkswap /dev/${lv_swap}
 else
   echo "failed to create volume ${lv_swap}"
 fi
 
+mkdir -p /var/cache/debootstrap
+debootstrap --cache-dir=/var/cache/debootstrap --include=${packages} ${release} /mnt/${lv_root} 
 
-debootstrap --include=${packages} ${release} /mnt/${lv_root} 
-
-echo "linux \"root=/dev/vdb ro\"" > /mnt/${lv_root}/boot/refind_linux.cfg
+echo "linux \"root=/dev/vdb ro console=tty0 console=ttyS0,115200\"" > /mnt/${lv_root}/boot/refind_linux.conf
 
 echo $1 > /mnt/${lv_root}/etc/hostname
 
@@ -77,7 +77,7 @@ EOF
 
 echo "${authorized_key}" >> /mnt/${lv_root}/tmp/authorized_keys
 
-cat > /mnt/${lv_root}/etc/sudoers.d/${adminuser} <<'EOF'
+cat > /mnt/${lv_root}/etc/sudoers.d/${adminuser} <<EOF
 ${adminuser} ALL=(ALL) NOPASSWD:ALL
 EOF
 
@@ -90,56 +90,32 @@ chroot /mnt/${lv_root}/ locale-gen en_US.UTF-8
 chroot /mnt/${lv_root}/ update-locale LANG=en_US.UTF-8
 chroot /mnt/${lv_root}/ setupcon
 chroot /mnt/${lv_root}/ useradd -m -s /bin/bash ${adminuser}
-chroot /mnt/${lv_root}/ passwd -d ${adminuser} 
+chroot /mnt/${lv_root}/ usermod -p* ${adminuser}
+chroot /mnt/${lv_root}/ usermod -L  ${adminuser}
 chroot /mnt/${lv_root}/ usermod -aG sudo ${adminuser}
-chroot /mnt/${lv_root}/ useradd -m -s /bin/bash ${adminuser}
 chroot /mnt/${lv_root}/ mkdir -p /home/${adminuser}/.ssh
 chroot /mnt/${lv_root}/ mv /tmp/authorized_keys /home/${adminuser}/.ssh/
 chroot /mnt/${lv_root}/ chown -R ${adminuser}:${adminuser} /home/${adminuser}/.ssh
 chroot /mnt/${lv_root}/ chmod 700 /home/${adminuser}/.ssh
 chroot /mnt/${lv_root}/ chmod 600 /home/${adminuser}/.ssh/authorized_keys
 chroot /mnt/${lv_root}/ passwd -l root
-chroot /mnt/${lv_root}/ bash -c '
-set -e
+chroot /mnt/${lv_root}/ systemctl enable serial-getty@ttyS0.service
 
-SSHD=/etc/ssh/sshd_config
-
-# Backup original config
+SSHD=/mnt/${lv_root}/etc/ssh/sshd_config
 cp "$SSHD" "$SSHD.orig"
 
-# Disable root login
 sed -i "s/^#\?PermitRootLogin.*/PermitRootLogin no/" "$SSHD"
-
-# Disable password authentication
 sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication no/" "$SSHD"
-
-# Disable empty passwords
 sed -i "s/^#\?PermitEmptyPasswords.*/PermitEmptyPasswords no/" "$SSHD"
-
-# Disable keyboard-interactive auth
 sed -i "s/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication no/" "$SSHD"
-
-# Disable challenge-response (older Debian configs)
-sed -i "s/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/" "$SSHD"
-
-# Reduce information leakage
 sed -i "s/^#\?DebianBanner.*/DebianBanner no/" "$SSHD"
-
-# Limit authentication attempts
-sed -i "s/^#\?MaxAuthTries.*/MaxAuthTries 3/" "$SSHD"
-
-# Disable X11 forwarding
 sed -i "s/^#\?X11Forwarding.*/X11Forwarding no/" "$SSHD"
-
-# Disable agent forwarding
 sed -i "s/^#\?AllowAgentForwarding.*/AllowAgentForwarding no/" "$SSHD"
-
-# Disable TCP forwarding
 sed -i "s/^#\?AllowTcpForwarding.*/AllowTcpForwarding no/" "$SSHD"
 
 # Only allow the admin account
 echo "AllowUsers ${adminuser}" >> "$SSHD"
-'
+
 umount /mnt/${lv_root}
 
 virt-install \
@@ -151,9 +127,11 @@ virt-install \
   --disk path=/dev/vg00/vm_refind,format=raw,bus=virtio,readonly=on \
   --disk path=/dev/vg00/vm_$1_root,bus=virtio,format=raw \
   --disk path=/dev/vg00/vm_$1_swap,bus=virtio,format=raw \
-  --boot uefi \
-  --boot loader=/usr/share/OVMF/OVMF_CODE_4M.fd,loader.readonly=yes,loader.type=pflash,nvram.template=/usr/local/share/provision_vm/OVMF_VARS_4M_refind.fd \
+  --boot loader=/usr/share/OVMF/OVMF_CODE_4M.fd,loader.readonly=yes,loader.type=pflash,nvram.template=/usr/share/OVMF/OVMF_VARS_4M_refind.fd \
   --os-variant debian13 \
   --network network=${network},model=virtio \
+  --graphics none \
+  --video none \
+  --sound none \
   --import \
   --noreboot
