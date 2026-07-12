@@ -42,4 +42,5 @@ make sure to refind is booted - so we create an OVMF_VARS template for it (insta
 
 # Usage 
 provision_vm <hostname> <rootsize> <swapsize> <ramsize in MiB> <vcpu_count>
+
 e.g.: provision_vm vm01 16GiB 8GiB 4096 2
