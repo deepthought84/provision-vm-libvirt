@@ -13,12 +13,14 @@ replace vg00 with your volume group
 we use refind to avoid the hassle of every vm installs it own grub - the principle is simple, it just looks for the most recent kernel image and boots it
 
 prepare shared partition for refind bootloader:
+
     lvcreate vg00 -n vm_refind -L 1M
     mkfs.vfat /dev/vg00/vm_refind
     mkdir -p /mnt/vg00/vm_refind
     mount /dev/vg00/vm_refind /mnt/vg00/vm_refind
 
 use refind.conf from this repo, obtain copy of refind_x64.efi and ext4_x64.efi (e.g. from debian package), the structure should look like this:
+
     ./EFI/refind/refind_x64.efi
     ./EFI/refind/drivers_x64
     ./EFI/refind/drivers_x64/ext4_x64.efi
