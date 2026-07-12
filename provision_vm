@@ -49,7 +49,7 @@ echo "linux \"root=/dev/vdb ro console=tty0 console=ttyS0,115200\"" > /mnt/${lv_
 echo $1 > /mnt/${lv_root}/etc/hostname
 
 cat > /mnt/${lv_root}/etc/network/interfaces <<EOF
-auto iface enp1s0
+auto enp1s0
 iface enp1s0 inet dhcp
 EOF
 
