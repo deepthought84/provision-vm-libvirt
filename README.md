@@ -38,8 +38,8 @@ we make sure refind is booted - so we create an OVMF_VARS template for it (insta
 | Host  | Guest    | Description       |
 | ------ | ----- | ------- |
 | /mnt/vg00/vm_refind | /dev/vda | refind boot manager (read only / shared between vms)  - loads boots vm via efistub |
-| /mnt/vg00/vm_<hostname>_root | /dev/vdb | rootfs |
-| /mnt/vg00/vm_<hostname>_swap | /dev/vdc | swap |
+| /mnt/vg00/vm_\<hostname\>_root | /dev/vdb | rootfs |
+| /mnt/vg00/vm_\<hostname\>_swap | /dev/vdc | swap |
 
 
 # Usage 
