@@ -15,7 +15,7 @@ adminuser="admin"
 
 network="default"
 
-authorized_key="ssh-ed25519 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+authorized_key="ssh-ed25519 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 packages="linux-image-amd64,locales,keyboard-configuration,console-setup,sudo,openssh-server,qemu-guest-agent"
 
