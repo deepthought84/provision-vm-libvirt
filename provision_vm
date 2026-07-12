@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+if [[ $EUID -ne 0 ]]; then
+    echo "$0 is not running as root. Try using sudo."
+    exit 2
+fi
+
+# Usage: provision_vm <hostname> <rootsize> <swapsize> <ramsize in MiB> <vcpu_count>
+#    e.g.: provision_vm vm01 16GiB 8GiB 4096 2
+
+release="trixie"
+
+vg="vg00"
+
+adminuser="adminuser"
+
+authorized_key="ssh-ed25519 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+lv_root="${vg}/vm_${1}_root"
+lv_swap="${vg}/vm_${1}_swap"
+
+lvcreate ${vg} -n vm_$1_root -L $2
+lvcreate ${vg} -n vm_$1_swap -L $3
+
+if lvs ${lv_root}>/dev/null ; then
+  mkfs.ext4 /dev/${lv_root}
+  mkdir -p /mnt/${lv_root}
+  mount /dev/${lv_root} /mnt/${lv_root} && echo "sucessfully mounted ${lv_root}"
+else
+  echo "failed to create volume ${lv_root}"
+fi
+
+if lvs ${lv_swap}>/dev/null ; then
+  mkswap mkfs.ext4 /dev/${lv_swap}
+else
+  echo "failed to create volume ${lv_swap}"
+fi
+
+
+debootstrap --include=linux-image-amd64,locales,keyboard-configuration,console-setup,sudo,openssh-server,qemu-guest-agent ${release} /mnt/${lv_root} 
+
+echo "linux \"root=/dev/vdb ro\"" > /mnt/${lv_root}/boot/refind_linux.cfg
+
+echo $1 > /mnt/${lv_root}/etc/hostname
+
+cat > /mnt/${lv_root}/etc/network/interfaces <<EOF
+auto iface enp1s0
+iface enp1s0 inet dhcp
+EOF
+
+cat > /mnt/${lv_root}/etc/hosts <<EOF
+127.0.0.1       localhost $1
+
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+EOF
+
+echo "en_US.UTF-8 UTF-8" >> /mnt/${lv_root}/etc/locale.gen
+
+cat > /mnt/${lv_root}/etc/default/keyboard <<EOF
+XKBMODEL="pc105"
+XKBLAYOUT="de"
+XKBVARIANT=""
+XKBOPTIONS=""
+EOF
+
+cat > /mnt/${lv_root}/etc/fstab <<EOF
+/dev/vdb /               ext4    errors=remount-ro 0       1
+/dev/vdc none            swap    sw              0       0
+EOF
+
+echo "${authorized_key}" >> /mnt/${lv_root}/tmp/authorized_keys
+
+cat > /mnt/${lv_root}/etc/sudoers.d/${adminuser} <<'EOF'
+${adminuser} ALL=(ALL) NOPASSWD:ALL
+EOF
+
+chmod 440 /mnt/${lv_root}/etc/sudoers.d/${adminuser}
+
+chroot /mnt/${lv_root}/ ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime
+chroot /mnt/${lv_root}/ dpkg-reconfigure -f noninteractive tzdata
+chroot /mnt/${lv_root}/ dpkg-reconfigure -f noninteractive keyboard-configuration
+chroot /mnt/${lv_root}/ locale-gen en_US.UTF-8
+chroot /mnt/${lv_root}/ update-locale LANG=en_US.UTF-8
+chroot /mnt/${lv_root}/ setupcon
+chroot /mnt/${lv_root}/ useradd -m -s /bin/bash ${adminuser}
+chroot /mnt/${lv_root}/ passwd -d ${adminuser} 
+chroot /mnt/${lv_root}/ usermod -aG sudo ${adminuser}
+chroot /mnt/${lv_root}/ useradd -m -s /bin/bash ${adminuser}
+chroot /mnt/${lv_root}/ mkdir -p /home/${adminuser}/.ssh
+chroot /mnt/${lv_root}/ mv /tmp/authorized_keys /home/${adminuser}/.ssh/
+chroot /mnt/${lv_root}/ chown -R ${adminuser}:${adminuser} /home/${adminuser}/.ssh
+chroot /mnt/${lv_root}/ chmod 700 /home/${adminuser}/.ssh
+chroot /mnt/${lv_root}/ chmod 600 /home/${adminuser}/.ssh/authorized_keys
+chroot /mnt/${lv_root}/ passwd -l root
+chroot /mnt/${lv_root}/ bash -c '
+set -e
+
+SSHD=/etc/ssh/sshd_config
+
+# Backup original config
+cp "$SSHD" "$SSHD.orig"
+
+# Disable root login
+sed -i "s/^#\?PermitRootLogin.*/PermitRootLogin no/" "$SSHD"
+
+# Disable password authentication
+sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication no/" "$SSHD"
+
+# Disable empty passwords
+sed -i "s/^#\?PermitEmptyPasswords.*/PermitEmptyPasswords no/" "$SSHD"
+
+# Disable keyboard-interactive auth
+sed -i "s/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication no/" "$SSHD"
+
+# Disable challenge-response (older Debian configs)
+sed -i "s/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/" "$SSHD"
+
+# Reduce information leakage
+sed -i "s/^#\?DebianBanner.*/DebianBanner no/" "$SSHD"
+
+# Limit authentication attempts
+sed -i "s/^#\?MaxAuthTries.*/MaxAuthTries 3/" "$SSHD"
+
+# Disable X11 forwarding
+sed -i "s/^#\?X11Forwarding.*/X11Forwarding no/" "$SSHD"
+
+# Disable agent forwarding
+sed -i "s/^#\?AllowAgentForwarding.*/AllowAgentForwarding no/" "$SSHD"
+
+# Disable TCP forwarding
+sed -i "s/^#\?AllowTcpForwarding.*/AllowTcpForwarding no/" "$SSHD"
+
+# Only allow the admin account
+echo "AllowUsers ${adminuser}" >> "$SSHD"
+'
+umount /mnt/${lv_root}
+
+virt-install \
+  --name $1 \
+  --memory $4 \
+  --vcpus $5 \
+  --machine q35 \
+  --check path_in_use=off \
+  --disk path=/dev/vg00/vm_refind,format=raw,bus=virtio,readonly=on \
+  --disk path=/dev/vg00/vm_$1_root,bus=virtio,format=raw \
+  --disk path=/dev/vg00/vm_$1_swap,bus=virtio,format=raw \
+  --boot uefi \
+  --boot loader=/usr/share/OVMF/OVMF_CODE_4M.fd,loader.readonly=yes,loader.type=pflash,nvram.template=/usr/local/share/provision_vm/OVMF_VARS_4M_refind.fd \
+  --os-variant debian13 \
+  --network network=default,model=virtio \
+  --import \
+  --noreboot
